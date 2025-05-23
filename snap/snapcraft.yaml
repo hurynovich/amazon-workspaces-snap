@@ -1,10 +1,9 @@
-name: amz-workspaces
-icon: snap/gui/amz-workspaces.svg
+name: aws-workspaces
+icon: snap/gui/aws-workspaces.svg
 summary: Amazon Workspaces
 base: core20
 description: |
   Client for Amazon WorkSpaces - a managed, secure Desktop-as-a-Service (DaaS) solution.
-
   NOTE: This wrapper is not verified by, affiliated with, or supported by Amazon.com, Inc. This snap will be de-listed if/when Amazon decide to distribute
   an official Workspaces client snap.
 adopt-info: workspaces
@@ -16,10 +15,11 @@ architectures:
 compression: lzo
 
 apps:
-  amz-workspaces:
-    command: bin/workspaces-launch
+  aws-workspaces:
+    command: usr/bin/workspacesclient
     environment:
-      LD_LIBRARY_PATH: $SNAP_DATA/opt/workspacesclient:$SNAP_DATA/usr/lib/x86_64-linux-gnu/pcoip-client/vchan_plugins
+      NO_AT_BRIDGE: 1
+
     extensions:
       - gnome-3-38
     plugs:
@@ -40,6 +40,13 @@ apps:
       - wayland
       - x11
       - shmem
+#      - dbus-workspaces
+
+#slots:
+#  dbus-workspaces:
+#    interface: dbus
+#    bus: session
+#    name: com.amazon.workspacesclient
 
 plugs:
   shmem:
@@ -48,85 +55,34 @@ plugs:
 
 parts:
   workspaces:
-    after: [ libssl, hiredis ]
-    plugin: nil
-    build-packages:
-      - jq
-      - wget
+    plugin: dump
+    source: https://d3nt0h4h6pmmc4.cloudfront.net/new_workspacesclient_focal_amd64.deb
+    source-type: deb
+    override-build: |
+      snapcraftctl build
+      snapcraftctl set-version 4.7.0.4312
     stage-packages:
-      - wget
-      - jq
       - libgraphicsmagick++-q16-12
       - liblttng-ust0
       - libusb-1.0-0
       - libva2
       - libxcb-util1
-      - xz-utils
-    override-build: |
-      wget "https://d3nt0h4h6pmmc4.cloudfront.net/workspacesclient_focal_amd64.deb"
-      dpkg-deb -xv workspacesclient_focal_amd64.deb .
-      VERSION=$(cat $SNAPCRAFT_PART_BUILD/opt/workspacesclient/appsettings.json | jq .ProductVersion | tr -d '"')
-      snapcraftctl set-version $VERSION
-  libssl:
-    plugin: make
-    source: https://github.com/openssl/openssl.git
-    source-tag: OpenSSL_1_1_1q
-    override-build: |
-      ./config shared --prefix=/usr --openssldir=/usr/lib/ssl --libdir=lib/$SNAPCRAFT_ARCH_TRIPLET no-idea no-mdc2 no-rc5 no-zlib no-ssl3 enable-unit-test no-ssl3-method enable-rfc3779 enable-cms enable-ec_nistp_64_gcc_128
-      snapcraftctl build
-    build-packages:
-      - build-essential
-      - perl
-    prime: &exclusions
-      - -usr/include
-      - -usr/share/doc
-      - -usr/share/man
-      - -usr/**/pkgconfig
-      - -usr/**/*.a
-      - -usr/**/*.la
-  hiredis:
-    plugin: make
-    source: https://github.com/redis/hiredis.git
-    source-tag: v0.14.1
-    make-parameters:
-      - PREFIX=/usr
-      - LIBRARY_PATH=lib/$SNAPCRAFT_ARCH_TRIPLET
-    prime: *exclusions
-  # liblttng-ust0:
-  #   plugin: autotools
-  #   source: git://git.lttng.org/lttng-ust.git
-  #   source-tag: v2.12.7
-  #   autotools-configure-parameters:
-  #     - --prefix=/usr
-  #     - --libdir=/usr/lib/$SNAPCRAFT_ARCH_TRIPLET #overriding libdir removes the $CRAFT_STAGE prefix so temporarily commenting this out. See https://forum.snapcraft.io/t/libtool-warning-library-was-moved/31951
-  #     - --libexecdir=/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
-  #     - --sysconfdir=/etc
-  #     - --includedir=/usr/include/$SNAPCRAFT_ARCH_TRIPLET
-  #     - --localstatedir=/var
-  #     - --disable-man-pages
-  #   override-build: |
-  #     ./bootstrap
-  #     ./configure --prefix=/usr --libdir=/usr/lib/$CRAFT_ARCH_TRIPLET --libexecdir=/usr/lib/$CRAFT_ARCH_TRIPLET --sysconfdir=/etc --includedir=/usr/include/$CRAFT_ARCH_TRIPLET --localstatedir=/var --disable-man-pages
-  #     make
-  #     make install DESTDIR=$CRAFT_PART_INSTALL
-  #   build-packages:
-  #     - automake
-  #     - libtool
-  #     - pkg-config
-  #     - liburcu-dev
-  #     - libnuma-dev
-  #   stage-packages:
-  #     - liburcu6
-  #   organize:
-  #     'usr/local/*': usr/
-  #   prime: *exclusions
-  launcher:
+      - desktop-file-utils
+      - libhiredis0.14
+      - libsoup2.4-1
+      - libva-drm2
+      - libva-x11-2
+      - libvdpau1
+      - libwebkit2gtk-4.0-37
+      - libglib2.0-bin
+      - libgtk-3-0
+      - libxcb-res0
+      - libgtk2.0-bin
+
+  lsb-release-mock:
     plugin: dump
-    source: snap/local/launcher
+    source: snap/local/script
     source-type: local
     organize:
-      '*': bin/
+      '*': /usr/bin/
 
-hooks:
-  configure:
-    plugs: [network]
